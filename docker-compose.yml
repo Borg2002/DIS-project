@@ -1,0 +1,42 @@
+services:
+  # Our postgress container. This is pretty much a standard setting.
+  database:
+    image: 'postgres:latest'
+    container_name: database
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} -t 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 10s
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: '123'
+      POSTGRES_DB: todo
+  # Our app container
+  web:
+    build:
+      context: .
+      # We use our Docker file of course
+      dockerfile: Dockerfile
+    depends_on:
+      database:
+        condition: service_healthy
+    # This is an important line. We are mount the current directory inside of the container. This so our code changes outside of the container also modify what is inside of the container.
+    volumes:
+      - ./:/code
+    environment:
+      - PGPUSER='postgres'
+      - PGPASSWORD='123'
+      # Setting the host in this enviroment variable is very important as docker sets the address of the database
+      - HOST='database'
+    ports:
+      # This makes the port 5000 accessible outside of the docker
+      - "5000:5000"
+    links:
+      - database
+volumes:
+  pgdata:
